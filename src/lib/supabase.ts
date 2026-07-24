@@ -8,28 +8,81 @@ const useCookies =
   typeof window !== 'undefined' &&
   window.location.hostname.endsWith('veralyze.net');
 
+const MAX_CHUNK = 3000;
+const MAX_CHUNKS = 20;
+
+function writeCookie(name: string, value: string) {
+  document.cookie = [
+    name + '=' + encodeURIComponent(value),
+    'path=/',
+    'max-age=31536000',
+    'SameSite=Lax',
+    'Secure',
+    'domain=' + COOKIE_DOMAIN,
+  ].join('; ');
+}
+
+function readCookie(name: string): string | null {
+  const m = document.cookie.match(
+    new RegExp('(?:^|; )' + name.replace(/\./g, '\\.') + '=([^;]*)')
+  );
+  return m ? decodeURIComponent(m[1]) : null;
+}
+
+function deleteCookie(name: string) {
+  document.cookie = [
+    name + '=',
+    'path=/',
+    'max-age=0',
+    'domain=' + COOKIE_DOMAIN,
+  ].join('; ');
+}
+
+function clearAll(key: string) {
+  deleteCookie(key);
+  for (let i = 0; i < MAX_CHUNKS; i++) deleteCookie(key + '.' + i);
+}
+
 const cookieStorage = {
-  getItem(key: string) {
-    const m = document.cookie.match(new RegExp('(^|; )' + key + '=([^;]*)'));
-    return m ? decodeURIComponent(m[2]) : null;
+  getItem(key: string): string | null {
+    try {
+      const single = readCookie(key);
+      if (single !== null) return single;
+      let out = '';
+      for (let i = 0; i < MAX_CHUNKS; i++) {
+        const part = readCookie(key + '.' + i);
+        if (part === null) break;
+        out += part;
+      }
+      return out.length ? out : null;
+    } catch {
+      return null;
+    }
   },
+
   setItem(key: string, value: string) {
-    document.cookie = [
-      key + '=' + encodeURIComponent(value),
-      'path=/',
-      'max-age=31536000',
-      'SameSite=Lax',
-      'Secure',
-      'domain=' + COOKIE_DOMAIN,
-    ].join('; ');
+    try {
+      clearAll(key);
+      if (value.length <= MAX_CHUNK) {
+        writeCookie(key, value);
+        return;
+      }
+      let i = 0;
+      for (let pos = 0; pos < value.length; pos += MAX_CHUNK) {
+        writeCookie(key + '.' + i, value.slice(pos, pos + MAX_CHUNK));
+        i++;
+      }
+    } catch {
+      /* best effort */
+    }
   },
+
   removeItem(key: string) {
-    document.cookie = [
-      key + '=',
-      'path=/',
-      'max-age=0',
-      'domain=' + COOKIE_DOMAIN,
-    ].join('; ');
+    try {
+      clearAll(key);
+    } catch {
+      /* ignore */
+    }
   },
 };
 
