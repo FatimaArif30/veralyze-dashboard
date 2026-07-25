@@ -24,6 +24,73 @@ function prettyPattern(s = ''): string {
   return t.charAt(0).toUpperCase() + t.slice(1);
 }
 
+function shortenUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.replace(/^www\./, '');
+    const seg = u.pathname.split('/').filter(Boolean)[0];
+    return seg ? `${host}/${seg}` : host;
+  } catch {
+    return url;
+  }
+}
+
+function truncateToWidth(doc: jsPDF, text: string, maxWidth: number, size: number): string {
+  doc.setFontSize(size);
+  if (doc.getTextWidth(text) <= maxWidth) return text;
+  const ellipsis = '…';
+  let lo = 0;
+  let hi = text.length;
+  while (lo < hi) {
+    const mid = Math.ceil((lo + hi) / 2);
+    if (doc.getTextWidth(text.slice(0, mid) + ellipsis) <= maxWidth) lo = mid;
+    else hi = mid - 1;
+  }
+  return lo > 0 ? text.slice(0, lo) + ellipsis : ellipsis;
+}
+
+// Renders `${title||shortUrl} — strength, stance` with the title/url segment as a clickable
+// lime, underlined link (truncated with an ellipsis rather than wrapped) and the rest as
+// plain text on the same line, so the raw URL is never shown but is always the link target.
+function sourceLine(
+  doc: jsPDF,
+  s: any,
+  y: number,
+  opts: { size?: number; indent?: number; color?: [number, number, number] } = {}
+): number {
+  const size = opts.size ?? 10.5;
+  const indent = opts.indent ?? 0;
+  const color = opts.color ?? BLACK;
+  const maxWidth = PAGE_W - MARGIN * 2 - indent;
+  const x = MARGIN + indent;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(size);
+  y = ensureSpace(doc, y, size * 1.35);
+
+  const url: string = s?.url || '';
+  const title: string = s?.title ? String(s.title) : '';
+  const suffix = ` — ${val(s?.strength)}${s?.stance ? `, ${s.stance}` : ''}`;
+  const linkLabel = title || (url ? shortenUrl(url) : '');
+
+  if (linkLabel && url) {
+    const suffixWidth = doc.getTextWidth(suffix);
+    const availableForLink = Math.max(maxWidth - suffixWidth, 40);
+    const display = truncateToWidth(doc, linkLabel, availableForLink, size);
+    doc.setTextColor(...LIME);
+    doc.textWithLink(display, x, y, { url });
+    const linkWidth = doc.getTextWidth(display);
+    doc.setDrawColor(...LIME);
+    doc.setLineWidth(0.6);
+    doc.line(x, y + 2, x + linkWidth, y + 2);
+    doc.setTextColor(...color);
+    doc.text(suffix, x + linkWidth, y);
+  } else {
+    doc.setTextColor(...color);
+    doc.text(truncateToWidth(doc, (linkLabel || val(undefined)) + suffix, maxWidth, size), x, y);
+  }
+  return y + size * 1.35;
+}
+
 function newDoc(): jsPDF {
   return new jsPDF({ unit: 'pt', format: 'a4' });
 }
@@ -36,7 +103,7 @@ function ensureSpace(doc: jsPDF, y: number, needed: number): number {
   return y;
 }
 
-function drawHeader(doc: jsPDF, opts: { reportType: string; videoTitle: string; videoUrl: string }): number {
+function drawHeader(doc: jsPDF, opts: { reportType: string; videoTitle: string | null; videoUrl: string }): number {
   let y = MARGIN;
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(22);
@@ -54,13 +121,24 @@ function drawHeader(doc: jsPDF, opts: { reportType: string; videoTitle: string; 
   y += 20;
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(11);
+  y = ensureSpace(doc, y, 16);
+  const maxWidth = PAGE_W - MARGIN * 2;
+  const hasUrl = !!opts.videoUrl;
+  const label = opts.videoTitle || (hasUrl ? shortenUrl(opts.videoUrl) : 'Untitled video');
+  if (hasUrl) {
+    const display = truncateToWidth(doc, label, maxWidth, 11);
+    doc.setTextColor(...LIME);
+    doc.textWithLink(display, MARGIN, y, { url: opts.videoUrl });
+    const w = doc.getTextWidth(display);
+    doc.setDrawColor(...LIME);
+    doc.setLineWidth(0.75);
+    doc.line(MARGIN, y + 2, MARGIN + w, y + 2);
+  } else {
+    doc.setTextColor(...GRAY);
+    doc.text(truncateToWidth(doc, label, maxWidth, 11), MARGIN, y);
+  }
+  y += 16;
   doc.setTextColor(...GRAY);
-  const titleLines = doc.splitTextToSize(val(opts.videoTitle), PAGE_W - MARGIN * 2);
-  doc.text(titleLines, MARGIN, y);
-  y += titleLines.length * 14 + 2;
-  const urlLines = doc.splitTextToSize(val(opts.videoUrl), PAGE_W - MARGIN * 2);
-  doc.text(urlLines, MARGIN, y);
-  y += urlLines.length * 14 + 2;
   doc.text(new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }), MARGIN, y);
   y += 16;
   doc.setDrawColor(...RULE);
@@ -125,7 +203,7 @@ function buildManipulationFull(data: any): jsPDF {
   const doc = newDoc();
   let y = drawHeader(doc, {
     reportType: 'Manipulation Analysis',
-    videoTitle: data?.video_title || data?.video_url || 'Untitled video',
+    videoTitle: data?.video_title || null,
     videoUrl: data?.video_url || '',
   });
 
@@ -187,12 +265,7 @@ function buildManipulationFull(data: any): jsPDF {
       bodyText(doc, 'No independent sources addressed this claim.', y);
     } else {
       for (const s of sources) {
-        y = bodyText(
-          doc,
-          `${val(s?.title)} — ${val(s?.strength)}${s?.stance ? `, ${s.stance}` : ''}`,
-          y + 2,
-          { indent: 10 }
-        );
+        y = sourceLine(doc, s, y + 2, { indent: 10 });
       }
     }
   }
@@ -204,7 +277,7 @@ function buildVerificationFull(data: any): jsPDF {
   const doc = newDoc();
   let y = drawHeader(doc, {
     reportType: 'Source Verification',
-    videoTitle: data?.video_title || data?.video_url || 'Untitled video',
+    videoTitle: data?.video_title || null,
     videoUrl: data?.video_url || '',
   });
 
@@ -264,12 +337,7 @@ function buildVerificationFull(data: any): jsPDF {
       if (c?.rationale) y = bodyText(doc, c.rationale, y + 2, { indent: 10 });
       const sources = c?.sources || [];
       for (const s of sources) {
-        y = bodyText(
-          doc,
-          `${val(s?.title)} — ${val(s?.strength)}${s?.stance ? `, ${s.stance}` : ''}`,
-          y + 2,
-          { indent: 20, size: 9.5, color: GRAY }
-        );
+        y = sourceLine(doc, s, y + 2, { indent: 20, size: 9.5, color: GRAY });
       }
       y += 8;
     }
@@ -282,7 +350,7 @@ function buildManipulationSummary(data: any): jsPDF {
   const doc = newDoc();
   let y = drawHeader(doc, {
     reportType: 'Manipulation Analysis — Summary',
-    videoTitle: data?.video_title || data?.video_url || 'Untitled video',
+    videoTitle: data?.video_title || null,
     videoUrl: data?.video_url || '',
   });
 
@@ -310,7 +378,7 @@ function buildVerificationSummary(data: any): jsPDF {
   const doc = newDoc();
   let y = drawHeader(doc, {
     reportType: 'Source Verification — Summary',
-    videoTitle: data?.video_title || data?.video_url || 'Untitled video',
+    videoTitle: data?.video_title || null,
     videoUrl: data?.video_url || '',
   });
 
