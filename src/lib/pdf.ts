@@ -35,6 +35,26 @@ function shortenUrl(url: string): string {
   }
 }
 
+// A title that's just the bare host/platform name (e.g. "Medium" for medium.com) carries no
+// more information than the URL itself, so it's treated the same as a missing title.
+function isBarePlatformName(title: string, url: string): boolean {
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, '');
+    const label = host.split('.')[0];
+    const t = title.trim().toLowerCase();
+    return t === host.toLowerCase() || t === label.toLowerCase();
+  } catch {
+    return false;
+  }
+}
+
+export function sourceLabel(s: any): string {
+  const title = s?.title ? String(s.title).trim() : '';
+  const url: string = s?.url || '';
+  if (title && !(url && isBarePlatformName(title, url))) return title;
+  return url ? shortenUrl(url) : title;
+}
+
 function truncateToWidth(doc: jsPDF, text: string, maxWidth: number, size: number): string {
   doc.setFontSize(size);
   if (doc.getTextWidth(text) <= maxWidth) return text;
@@ -68,9 +88,8 @@ function sourceLine(
   y = ensureSpace(doc, y, size * 1.35);
 
   const url: string = s?.url || '';
-  const title: string = s?.title ? String(s.title) : '';
   const suffix = ` — ${val(s?.strength)}${s?.stance ? `, ${s.stance}` : ''}`;
-  const linkLabel = title || (url ? shortenUrl(url) : '');
+  const linkLabel = sourceLabel(s);
 
   if (linkLabel && url) {
     const suffixWidth = doc.getTextWidth(suffix);
