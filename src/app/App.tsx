@@ -15,7 +15,7 @@ const seed:Report[]=[
 {title:"How I Made $50,000 in 30 Days with This Simple Strategy",trust:23,category:"Science",date:"6/6/2026",risk:"Critical"},{title:"The Deep State’s Plan for Digital Currency Revealed",trust:40,category:"Technology",date:"6/6/2026",risk:"Medium"},{title:"The Truth About Intermittent Fasting They Don’t Want You to Know",trust:48,category:"Environment",date:"6/6/2026",risk:"Medium"},{title:"Why Electric Cars Are Actually Worse for the Environment",trust:49,category:"Environment",date:"6/6/2026",risk:"Medium"},{title:"Scientists Shocked: New Study Reveals Hidden Danger in Tap Water",trust:33,category:"Science",date:"6/6/2026",risk:"High"}];
 const nav=[["Dashboard",Home],["Analyze",Sparkles],["History",History],["Verification",ClipboardCheck],["Feedback",MessageSquare],["Settings",Settings]] as const;
 const steps=["Extracting transcript","Detecting key claims","Checking source credibility","Finding contradictions","Detecting manipulation techniques","Calculating trust score","Generating report"];
-const valid=(v:string)=>/^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/).+/i.test(v.trim());
+const valid=(v:string)=>/^(https?:\/\/)?((www|m)\.)?(youtube\.com\/(watch\?v=|shorts\/|live\/|embed\/)|youtu\.be\/).+/i.test(v.trim());
 const N8N_BASE="https://veralyzeai.app.n8n.cloud/webhook";
 function riskFromTrust(trust:number){return trust>=85?'Low':trust>=55?'Medium':trust>=25?'High':'Critical'}
 function timeGreeting(){const h=new Date().getHours();return h>=5&&h<12?'Good morning':h>=12&&h<17?'Good afternoon':'Good evening'}
