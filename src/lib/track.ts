@@ -49,6 +49,12 @@ export function trackVisit() {
 }
 
 // One row every time an analysis result comes back (anonymous or signed-in).
-export function trackAnalysis(mode: string) {
-  log('analysis', { mode });
+// Also records which video was analysed, so we can see what anonymous users run.
+export function trackAnalysis(mode: string, data?: any) {
+  log('analysis', {
+    mode,
+    video_url: data?.video_url ?? null,
+    video_id: data?.video_id ?? null,
+    video_title: data?.video_title ?? null,
+  });
 }
