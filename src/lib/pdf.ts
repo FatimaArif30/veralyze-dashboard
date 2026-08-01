@@ -4,7 +4,8 @@ export type ReportMode = 'manipulation' | 'source-verification';
 
 const LIME: [number, number, number] = [231, 255, 71];
 const BLACK: [number, number, number] = [24, 24, 24];
-const GRAY: [number, number, number] = [110, 110, 110];
+const GRAY: [number, number, number] = [80, 80, 80];
+const LINK: [number, number, number] = [37, 99, 235];
 const RULE: [number, number, number] = [222, 222, 222];
 const MARGIN = 48;
 const PAGE_W = 595.28;
@@ -95,10 +96,10 @@ function sourceLine(
     const suffixWidth = doc.getTextWidth(suffix);
     const availableForLink = Math.max(maxWidth - suffixWidth, 40);
     const display = truncateToWidth(doc, linkLabel, availableForLink, size);
-    doc.setTextColor(...LIME);
+    doc.setTextColor(...LINK);
     doc.textWithLink(display, x, y, { url });
     const linkWidth = doc.getTextWidth(display);
-    doc.setDrawColor(...LIME);
+    doc.setDrawColor(...LINK);
     doc.setLineWidth(0.6);
     doc.line(x, y + 2, x + linkWidth, y + 2);
     doc.setTextColor(...color);
@@ -126,7 +127,7 @@ function drawHeader(doc: jsPDF, opts: { reportType: string; videoTitle: string |
   let y = MARGIN;
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(22);
-  doc.setTextColor(...LIME);
+  doc.setTextColor(...BLACK);
   doc.text('VERALYZE', MARGIN, y);
   y += 10;
   doc.setDrawColor(...LIME);
@@ -146,10 +147,10 @@ function drawHeader(doc: jsPDF, opts: { reportType: string; videoTitle: string |
   const label = opts.videoTitle || (hasUrl ? shortenUrl(opts.videoUrl) : 'Untitled video');
   if (hasUrl) {
     const display = truncateToWidth(doc, label, maxWidth, 11);
-    doc.setTextColor(...LIME);
+    doc.setTextColor(...LINK);
     doc.textWithLink(display, MARGIN, y, { url: opts.videoUrl });
     const w = doc.getTextWidth(display);
-    doc.setDrawColor(...LIME);
+    doc.setDrawColor(...LINK);
     doc.setLineWidth(0.75);
     doc.line(MARGIN, y + 2, MARGIN + w, y + 2);
   } else {
