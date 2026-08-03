@@ -228,6 +228,8 @@ export function CaseFileLoader({ mode, videoId, title, url, result, onRevealComp
         .cfl-stamp{animation:cfl-stamp .55s cubic-bezier(.34,1.56,.64,1) both}
         .cfl-flash{animation:cfl-flash .5s ease-out both}
         .cfl-fadeout{animation:cfl-fadeout .4s ease-out both}
+        @keyframes cfl-flow{to{stroke-dashoffset:-322}}
+        .cfl-flow{stroke-dasharray:22 300;filter:drop-shadow(0 0 6px rgba(231,255,71,.55));animation:cfl-flow 1.5s linear infinite}
       `}</style>
       <div
         className={`relative overflow-hidden rounded-[28px] border border-white/[.095] bg-white/[.055] p-6 text-white shadow-[0_24px_80px_rgba(0,0,0,.30),inset_0_1px_0_rgba(255,255,255,.075)] backdrop-blur-xl cfl-card-rise ${
@@ -237,7 +239,12 @@ export function CaseFileLoader({ mode, videoId, title, url, result, onRevealComp
         <div className="pointer-events-none absolute inset-x-10 top-0 -z-0 h-32 rounded-full bg-primary/[.09] blur-3xl" />
         <div className="relative z-10 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <ImageWithFallback src={veralyzeLogo} alt="" className="size-7 shrink-0 object-contain" />
+            <svg viewBox="0 0 120 120" className="size-8 shrink-0" aria-hidden="true">
+              <path d="M28 36 L60 90 L92 36" fill="none" stroke="rgba(231,255,71,.16)" strokeWidth={12} strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M41 64 L79 64" fill="none" stroke="rgba(231,255,71,.16)" strokeWidth={12} strokeLinecap="round" />
+              <path className="cfl-flow" d="M28 36 L60 90 L92 36" fill="none" stroke="#E7FF47" strokeWidth={12} strokeLinecap="round" strokeLinejoin="round" />
+              <path className="cfl-flow" d="M41 64 L79 64" fill="none" stroke="#E7FF47" strokeWidth={12} strokeLinecap="round" />
+            </svg>
             <span className="text-xs font-black tracking-[.18em] text-white/70">VERALYZE</span>
           </div>
           <span
