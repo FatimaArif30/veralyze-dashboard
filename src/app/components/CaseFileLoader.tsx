@@ -2,15 +2,24 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 // Centered, full-screen loader: the Veralyze monogram fills with lime like a
-// vessel, acting as an estimated progress gauge. The fill eases toward ~93%
-// over the expected analysis time and snaps to full the moment the report
-// arrives, then fades out and the parent reveals the report.
+// vessel, acting as an estimated progress gauge, with a live percentage and a
+// rotating status line so it always reads as "working" (never hung). The fill
+// eases toward ~93% over the expected analysis time and snaps to 100% the
+// moment the report arrives, then fades and the parent reveals the report.
 
 type CaseFileMode = "manipulation" | "sources";
 
 const MIN_DISPLAY_MS = 1600;
 const FADE_MS = 360;
 const EST_MS = 18000; // expected analysis time; the fill eases toward ~93% across this
+const STEPS = [
+  "Reading transcript",
+  "Detecting key claims",
+  "Checking sources",
+  "Weighing evidence",
+  "Scoring trust",
+  "Almost there…",
+];
 
 export interface CaseFileLoaderProps {
   mode?: CaseFileMode;
@@ -26,6 +35,7 @@ export function CaseFileLoader({ result, onRevealComplete }: CaseFileLoaderProps
   const doneRef = useRef(false);
   const [fading, setFading] = useState(false);
   const [progress, setProgress] = useState(5);
+  const [step, setStep] = useState(0);
 
   // Estimated progress: eases toward ~93% and never completes on its own.
   useEffect(() => {
@@ -40,10 +50,20 @@ export function CaseFileLoader({ result, onRevealComplete }: CaseFileLoaderProps
     return () => clearInterval(id);
   }, []);
 
+  // Rotating status line so it always reads as active work.
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (doneRef.current) return;
+      setStep(s => Math.min(s + 1, STEPS.length - 1));
+    }, 2600);
+    return () => clearInterval(id);
+  }, []);
+
   // When the report arrives: fill to 100%, hold a beat, fade, then reveal.
   useEffect(() => {
     if (result == null || doneRef.current) return;
     setProgress(100);
+    setStep(STEPS.length - 1);
     const elapsed = Date.now() - mountedAt.current;
     const wait = Math.max(0, MIN_DISPLAY_MS - elapsed);
     let t2: ReturnType<typeof setTimeout>;
@@ -62,6 +82,7 @@ export function CaseFileLoader({ result, onRevealComplete }: CaseFileLoaderProps
   }, [result, onRevealComplete]);
 
   const off = Math.max(0, Math.min(1, progress / 100));
+  const pct = Math.round(progress);
 
   return createPortal(
     <div
@@ -75,23 +96,29 @@ export function CaseFileLoader({ result, onRevealComplete }: CaseFileLoaderProps
         @keyframes vz-breathe{0%,100%{opacity:.28;transform:scale(.9)}50%{opacity:.55;transform:scale(1.12)}}
         .vz-breathe{animation:vz-breathe 2.4s ease-in-out infinite}
       `}</style>
-      <div className="relative grid place-items-center">
-        <div className="vz-breathe pointer-events-none absolute h-56 w-56 rounded-full bg-primary/25 blur-3xl md:h-72 md:w-72" />
-        <svg
-          viewBox="0 0 120 120"
-          className="relative h-44 w-44 md:h-56 md:w-56"
-          style={{ filter: "drop-shadow(0 0 10px rgba(231,255,71,.35))" }}
-          aria-hidden="true"
-        >
-          <defs>
-            <linearGradient id="vz-fill" gradientUnits="userSpaceOnUse" x1="60" y1="92" x2="60" y2="34">
-              <stop offset={off} stopColor="#E7FF47" stopOpacity={1} />
-              <stop offset={off} stopColor="#E7FF47" stopOpacity={0.16} />
-            </linearGradient>
-          </defs>
-          <path d="M28 36 L60 90 L92 36" fill="none" stroke="url(#vz-fill)" strokeWidth={12} strokeLinecap="round" strokeLinejoin="round" />
-          <path d="M41 64 L79 64" fill="none" stroke="url(#vz-fill)" strokeWidth={12} strokeLinecap="round" />
-        </svg>
+      <div className="flex flex-col items-center">
+        <div className="relative grid place-items-center">
+          <div className="vz-breathe pointer-events-none absolute h-52 w-52 rounded-full bg-primary/25 blur-3xl md:h-64 md:w-64" />
+          <svg
+            viewBox="0 0 120 120"
+            className="relative h-40 w-40 md:h-52 md:w-52"
+            style={{ filter: "drop-shadow(0 0 10px rgba(231,255,71,.35))" }}
+            aria-hidden="true"
+          >
+            <defs>
+              <linearGradient id="vz-fill" gradientUnits="userSpaceOnUse" x1="60" y1="92" x2="60" y2="34">
+                <stop offset={off} stopColor="#E7FF47" stopOpacity={1} />
+                <stop offset={off} stopColor="#E7FF47" stopOpacity={0.16} />
+              </linearGradient>
+            </defs>
+            <path d="M28 36 L60 90 L92 36" fill="none" stroke="url(#vz-fill)" strokeWidth={12} strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M41 64 L79 64" fill="none" stroke="url(#vz-fill)" strokeWidth={12} strokeLinecap="round" />
+          </svg>
+        </div>
+        <div className="mt-7 text-center">
+          <div className="text-3xl font-black tabular-nums text-primary">{pct}%</div>
+          <div className="mt-2 text-xs font-bold uppercase tracking-[.16em] text-white/45">{STEPS[step]}</div>
+        </div>
       </div>
     </div>,
     document.body
